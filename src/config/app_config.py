@@ -47,7 +47,7 @@ class AppConfig:
         # Параметры приложения
         self.APP_NAME: str = "CleanOps"
         self.APP_VERSION: str = "0.1.0"
-        self.DEBUG: bool = True
+        self.DEBUG: bool = False
 
     def __repr__(self) -> str:
         """Строковое представление конфигурации."""
