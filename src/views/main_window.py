@@ -176,6 +176,14 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Не удалось загрузить CalculatorView: {e}")
 
+        # Заказы
+        try:
+            from src.views.orders.orders_view import OrdersView
+            orders = OrdersView()
+            self.register_view("orders", orders)
+        except Exception as e:
+            print(f"Не удалось загрузить OrdersView: {e}")
+
     def _on_navigation(self, item_id: str) -> None:
         """Обрабатывает переключение раздела.
 
