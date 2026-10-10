@@ -136,6 +136,7 @@ class MainWindow(QMainWindow):
         self.content = QStackedWidget()
         self.content.setStyleSheet(f"background-color: {COLOR_BG};")
         self._populate_content()
+        self._register_real_views()
         bottom_layout.addWidget(self.content, 1)
 
         # Topbar (сверху, над всем)
@@ -156,6 +157,24 @@ class MainWindow(QMainWindow):
             view = PlaceholderView(title)
             index = self.content.addWidget(view)
             self.views[item_id] = index
+
+    def _register_real_views(self) -> None:
+        """Регистрирует реальные экраны вместо заглушек."""
+        # Дашборд
+        try:
+            from src.views.dashboard.dashboard_view import DashboardView
+            dashboard = DashboardView(user_name=self.user_name)
+            self.register_view("dashboard", dashboard)
+        except Exception as e:
+            print(f"Не удалось загрузить DashboardView: {e}")
+
+        # Калькулятор
+        try:
+            from src.views.calculator.calculator_view import CalculatorView
+            calculator = CalculatorView()
+            self.register_view("calculator", calculator)
+        except Exception as e:
+            print(f"Не удалось загрузить CalculatorView: {e}")
 
     def _on_navigation(self, item_id: str) -> None:
         """Обрабатывает переключение раздела.
