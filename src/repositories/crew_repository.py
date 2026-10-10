@@ -65,6 +65,6 @@ class CrewRepository(BaseRepository[Crew]):
         pattern = f"%{query}%"
         return (
             self.session.query(Crew)
-            .filter((Crew.name.ilike(pattern)) | (Crew.zone.ilike(pattern)))
+            .filter((Crew.name.like(pattern)) | (Crew.zone.like(pattern)))
             .all()
         )

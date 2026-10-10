@@ -37,9 +37,9 @@ class ClientRepository(BaseRepository[Client]):
         return (
             self.session.query(Client)
             .filter(
-                (Client.name.ilike(pattern))
-                | (Client.phone.ilike(pattern))
-                | (Client.email.ilike(pattern))
+                (Client.name.like(pattern))
+                | (Client.phone.like(pattern))
+                | (Client.email.like(pattern))
             )
             .all()
         )
@@ -136,7 +136,7 @@ class ObjectRepository(BaseRepository[Object]):
             Список объектов.
         """
         pattern = f"%{query}%"
-        return self.session.query(Object).filter(Object.address.ilike(pattern)).all()
+        return self.session.query(Object).filter(Object.address.like(pattern)).all()
 
     def get_active(self) -> List[Object]:
         """Возвращает все активные объекты.

@@ -33,7 +33,7 @@ class ServiceRepository(BaseRepository[Service]):
             Список услуг.
         """
         pattern = f"%{query}%"
-        return self.session.query(Service).filter(Service.name.ilike(pattern)).all()
+        return self.session.query(Service).filter(Service.name.like(pattern)).all()
 
     def get_by_unit(self, unit: str) -> List[Service]:
         """Возвращает услуги с указанной единицей измерения.
