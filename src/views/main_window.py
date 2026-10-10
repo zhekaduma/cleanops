@@ -200,6 +200,22 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Не удалось загрузить FinanceView: {e}")
 
+        # Пользователи
+        try:
+            from src.views.users.users_view import UsersView
+            users = UsersView()
+            self.register_view("users", users)
+        except Exception as e:
+            print(f"Не удалось загрузить UsersView: {e}")
+
+        # Журнал
+        try:
+            from src.views.log.log_view import LogView
+            log = LogView()
+            self.register_view("log", log)
+        except Exception as e:
+            print(f"Не удалось загрузить LogView: {e}")
+
     def _on_navigation(self, item_id: str) -> None:
         """Обрабатывает переключение раздела.
 
