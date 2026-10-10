@@ -216,6 +216,14 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Не удалось загрузить LogView: {e}")
 
+        # Справочники
+        try:
+            from src.views.references.references_view import ReferencesView
+            references = ReferencesView()
+            self.register_view("references", references)
+        except Exception as e:
+            print(f"Не удалось загрузить ReferencesView: {e}")
+
     def _on_navigation(self, item_id: str) -> None:
         """Обрабатывает переключение раздела.
 
