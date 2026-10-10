@@ -6,7 +6,7 @@
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -97,23 +97,23 @@ class Payment(Base, TimestampMixin, ReprMixin):
         index=True,
         comment="Статус платежа",
     )
-    paid_at: Mapped[datetime | None] = mapped_column(
+    paid_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime, nullable=True, index=True,
         comment="Дата и время оплаты",
     )
-    created_by: Mapped[int | None] = mapped_column(
+    created_by: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.user_id", ondelete="SET NULL"),
         nullable=True,
         comment="Кто принял платёж",
     )
-    comment: Mapped[str | None] = mapped_column(
+    comment: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True,
         comment="Комментарий",
     )
 
     # Связи
     order: Mapped["Order"] = relationship(back_populates="payments")
-    created_by_user: Mapped["User | None"] = relationship(
+    created_by_user: Mapped[Optional["User"]] = relationship(
         back_populates="payments",
         foreign_keys=[created_by],
     )

@@ -8,7 +8,7 @@
 """
 
 from datetime import date, datetime, time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
     Date,
@@ -127,12 +127,12 @@ class Order(Base, TimestampMixin, ReprMixin):
         nullable=False, index=True,
         comment="ID объекта уборки",
     )
-    crew_id: Mapped[int | None] = mapped_column(
+    crew_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("crews.crew_id", ondelete="SET NULL"),
         nullable=True, index=True,
         comment="ID назначенной бригады",
     )
-    manager_id: Mapped[int | None] = mapped_column(
+    manager_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.user_id", ondelete="SET NULL"),
         nullable=True, index=True,
         comment="ID менеджера",
@@ -165,27 +165,27 @@ class Order(Base, TimestampMixin, ReprMixin):
         Numeric(12, 2), nullable=False, default=0.0,
         comment="Итоговая стоимость",
     )
-    planned_date: Mapped[date | None] = mapped_column(
+    planned_date: Mapped[Optional[date]] = mapped_column(
         Date, nullable=True, index=True,
         comment="Планируемая дата",
     )
-    planned_start: Mapped[time | None] = mapped_column(
+    planned_start: Mapped[Optional[time]] = mapped_column(
         Time, nullable=True,
         comment="Планируемое время начала",
     )
-    planned_end: Mapped[time | None] = mapped_column(
+    planned_end: Mapped[Optional[time]] = mapped_column(
         Time, nullable=True,
         comment="Планируемое время окончания",
     )
-    actual_start: Mapped[datetime | None] = mapped_column(
+    actual_start: Mapped[Optional[datetime]] = mapped_column(
         DateTime, nullable=True,
         comment="Фактическое начало",
     )
-    actual_end: Mapped[datetime | None] = mapped_column(
+    actual_end: Mapped[Optional[datetime]] = mapped_column(
         DateTime, nullable=True,
         comment="Фактическое окончание",
     )
-    notes: Mapped[str | None] = mapped_column(
+    notes: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True,
         comment="Заметки",
     )
@@ -193,8 +193,8 @@ class Order(Base, TimestampMixin, ReprMixin):
     # Связи
     client: Mapped["Client"] = relationship(back_populates="orders")
     object: Mapped["Object"] = relationship(back_populates="orders")
-    crew: Mapped["Crew | None"] = relationship(back_populates="orders")
-    manager: Mapped["User | None"] = relationship(
+    crew: Mapped[Optional["Crew"]] = relationship(back_populates="orders")
+    manager: Mapped[Optional["User"]] = relationship(
         back_populates="orders",
         foreign_keys=[manager_id],
     )

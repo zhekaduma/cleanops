@@ -8,7 +8,7 @@
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -90,11 +90,11 @@ class User(Base, TimestampMixin, ReprMixin):
         String(150), nullable=False,
         comment="ФИО сотрудника",
     )
-    phone: Mapped[str | None] = mapped_column(
+    phone: Mapped[Optional[str]] = mapped_column(
         String(20), nullable=True,
         comment="Телефон",
     )
-    email: Mapped[str | None] = mapped_column(
+    email: Mapped[Optional[str]] = mapped_column(
         String(100), unique=True, nullable=True, index=True,
         comment="Email",
     )
@@ -106,7 +106,7 @@ class User(Base, TimestampMixin, ReprMixin):
         Boolean, default=True, nullable=False,
         comment="Активен ли аккаунт",
     )
-    last_login: Mapped[datetime | None] = mapped_column(
+    last_login: Mapped[Optional[datetime]] = mapped_column(
         DateTime, nullable=True,
         comment="Время последнего входа",
     )
@@ -148,7 +148,7 @@ class AuditLog(Base, ReprMixin):
     _repr_fields = ["log_id", "user_id", "action", "entity"]
 
     log_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    user_id: Mapped[int | None] = mapped_column(
+    user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.user_id", ondelete="SET NULL"),
         nullable=True, index=True,
         comment="ID пользователя",
@@ -157,19 +157,19 @@ class AuditLog(Base, ReprMixin):
         String(50), nullable=False,
         comment="Тип действия (create/update/delete/login)",
     )
-    entity: Mapped[str | None] = mapped_column(
+    entity: Mapped[Optional[str]] = mapped_column(
         String(50), nullable=True,
         comment="Сущность (Order/Client/User/...)",
     )
-    entity_id: Mapped[int | None] = mapped_column(
+    entity_id: Mapped[Optional[int]] = mapped_column(
         nullable=True,
         comment="ID сущности",
     )
-    details: Mapped[str | None] = mapped_column(
+    details: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True,
         comment="Детали действия (JSON)",
     )
-    ip_address: Mapped[str | None] = mapped_column(
+    ip_address: Mapped[Optional[str]] = mapped_column(
         String(45), nullable=True,
         comment="IP-адрес (IPv4 или IPv6)",
     )
@@ -179,4 +179,4 @@ class AuditLog(Base, ReprMixin):
     )
 
     # Связи
-    user: Mapped["User | None"] = relationship(back_populates="audit_logs")
+    user: Mapped[Optional["User"]] = relationship(back_populates="audit_logs")

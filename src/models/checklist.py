@@ -7,7 +7,7 @@
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import (
     Boolean,
@@ -56,7 +56,7 @@ class ChecklistTask(Base, TimestampMixin, ReprMixin):
         nullable=False, index=True,
         comment="ID заказа",
     )
-    template_type: Mapped[str | None] = mapped_column(
+    template_type: Mapped[Optional[str]] = mapped_column(
         String(50), nullable=True,
         comment="Тип шаблона (по типу уборки)",
     )
@@ -72,19 +72,19 @@ class ChecklistTask(Base, TimestampMixin, ReprMixin):
         Boolean, default=False, nullable=False, index=True,
         comment="Выполнена ли задача",
     )
-    done_at: Mapped[datetime | None] = mapped_column(
+    done_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime, nullable=True,
         comment="Время выполнения",
     )
-    photo_before: Mapped[str | None] = mapped_column(
+    photo_before: Mapped[Optional[str]] = mapped_column(
         String(300), nullable=True,
         comment="Путь к фото «до»",
     )
-    photo_after: Mapped[str | None] = mapped_column(
+    photo_after: Mapped[Optional[str]] = mapped_column(
         String(300), nullable=True,
         comment="Путь к фото «после»",
     )
-    comment: Mapped[str | None] = mapped_column(
+    comment: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True,
         comment="Комментарий клинера",
     )

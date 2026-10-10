@@ -7,7 +7,7 @@
 Соответствует разделу ТЗ 4.2.2 (справочники клиентов и объектов).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -100,11 +100,11 @@ class Client(Base, TimestampMixin, ReprMixin):
         String(20), nullable=False, index=True,
         comment="Телефон",
     )
-    email: Mapped[str | None] = mapped_column(
+    email: Mapped[Optional[str]] = mapped_column(
         String(100), nullable=True,
         comment="Email",
     )
-    address: Mapped[str | None] = mapped_column(
+    address: Mapped[Optional[str]] = mapped_column(
         String(300), nullable=True,
         comment="Юридический адрес",
     )
@@ -112,7 +112,7 @@ class Client(Base, TimestampMixin, ReprMixin):
         Numeric(5, 2), default=0.0, nullable=False,
         comment="Персональная скидка в процентах",
     )
-    notes: Mapped[str | None] = mapped_column(
+    notes: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True,
         comment="Заметки о клиенте",
     )
@@ -168,7 +168,7 @@ class Object(Base, TimestampMixin, ReprMixin):
         String(20), nullable=False, default=ObjectType.APARTMENT,
         comment="Тип объекта",
     )
-    access_notes: Mapped[str | None] = mapped_column(
+    access_notes: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True,
         comment="Особенности доступа",
     )
