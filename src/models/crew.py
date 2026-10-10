@@ -5,7 +5,7 @@
 Соответствует разделу ТЗ 4.2.2 (управление бригадами).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Boolean, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -41,15 +41,15 @@ class Crew(Base, TimestampMixin, ReprMixin):
         String(100), nullable=False, index=True,
         comment="Название бригады",
     )
-    zone: Mapped[str | None] = mapped_column(
+    zone: Mapped[Optional[str]] = mapped_column(
         String(100), nullable=True,
         comment="Зона работы (район)",
     )
-    transport: Mapped[str | None] = mapped_column(
+    transport: Mapped[Optional[str]] = mapped_column(
         String(100), nullable=True,
         comment="Транспорт (модель, госномер)",
     )
-    notes: Mapped[str | None] = mapped_column(
+    notes: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True,
         comment="Заметки о бригаде",
     )
