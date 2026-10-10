@@ -62,9 +62,9 @@ class ReportService:
 
         return {
             "orders_today": len(orders_today),
-            "revenue_today": round(revenue_today, 2),
+            "revenue_today": round(float(revenue_today), 2),
             "active_crews": active_crews,
-            "avg_check": round(avg_check, 2),
+            "avg_check": round(float(avg_check), 2),
         }
 
     def get_revenue_for_period(self, start: date, end: date) -> Dict:
@@ -90,9 +90,9 @@ class ReportService:
         avg_check = revenue / orders_count if orders_count else 0.0
 
         return {
-            "revenue": round(revenue, 2),
+            "revenue": round(float(revenue), 2),
             "orders_count": orders_count,
-            "avg_check": round(avg_check, 2),
+            "avg_check": round(float(avg_check), 2),
             "payments_count": len(paid_payments),
             "period": {"start": start, "end": end},
         }
@@ -153,7 +153,7 @@ class ReportService:
                 "client_id": client.client_id,
                 "name": client.name,
                 "orders_count": len(orders),
-                "total_sum": round(total, 2),
+                "total_sum": round(float(total), 2),
             })
 
         result.sort(key=lambda x: x["total_sum"], reverse=True)
@@ -181,7 +181,7 @@ class ReportService:
         result = {method: 0.0 for method in PaymentMethod.ALL}
         for payment in payments:
             if payment.status == PaymentStatus.PAID:
-                result[payment.method] += payment.amount
+                result[payment.method] += float(payment.amount)
 
         return {k: round(v, 2) for k, v in result.items()}
 
@@ -212,6 +212,6 @@ class ReportService:
             result.append({
                 "date": target,
                 "orders_count": len(orders),
-                "revenue": round(revenue, 2),
+                "revenue": round(float(revenue), 2),
             })
         return result
