@@ -61,6 +61,7 @@ class Application:
         self.main_window = MainWindow(
             user_name=user.full_name,
             user_role=role_label,
+            current_user=user,
         )
         self.main_window.topbar.logout_requested.connect(self._on_logout)
         self.main_window.show()

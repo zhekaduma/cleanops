@@ -1,62 +1,63 @@
 """Экран калькулятора стоимости.
 
 Реализует F-1.1–F-1.8: расчёт стоимости заказа по формуле из ТЗ.
-Две колонки: слева — форма ввода, справа — живая смета.
-
-Соответствует макету из Figma.
+Позволяет выбрать клиента, объект, дату и сохранить заказ в БД.
 """
 
+from datetime import date, time
 from typing import Optional
 
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import QDate, QTime, Qt, pyqtSignal
 from PyQt5.QtWidgets import (
-    QCheckBox,
     QComboBox,
+    QDateEdit,
     QDoubleSpinBox,
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
+    QMessageBox,
     QPushButton,
+    QTimeEdit,
     QVBoxLayout,
     QWidget,
 )
 
+from src.repositories.client_repository import (
+    ClientRepository,
+    ObjectRepository,
+)
 from src.services.calculator_service import CalculatorService
 from src.services.dtos import CalculationInput
 
 
-# Цвета из Figma
 COLOR_BG = "#F8FAFC"
 COLOR_CARD = "#FFFFFF"
 COLOR_BORDER = "#E2E8F0"
 COLOR_TEXT_PRIMARY = "#0F172A"
 COLOR_TEXT_SECONDARY = "#64748B"
 COLOR_PRIMARY = "#0EA5A4"
-COLOR_SUCCESS = "#22C55E"
-COLOR_ERROR = "#EF4444"
 
 
 class CalculatorView(QWidget):
     """Экран калькулятора.
 
     Signals:
-        save_requested: Запрос сохранения заказа. Аргумент: dict с данными.
+        save_requested: Запрос сохранения заказа. Аргумент: dict.
     """
 
     save_requested = pyqtSignal(dict)
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
-        """Инициализирует экран калькулятора.
-
-        Args:
-            parent: Родительский виджет.
-        """
+        """Инициализирует экран."""
         super().__init__(parent)
         self.calculator = CalculatorService()
+        self.client_repo = ClientRepository()
+        self.object_repo = ObjectRepository()
+        self._last_result = None
 
         self.setStyleSheet(f"background-color: {COLOR_BG};")
         self._build_ui()
+        self._load_clients()
         self._recalculate()
 
     def _build_ui(self) -> None:
@@ -65,7 +66,6 @@ class CalculatorView(QWidget):
         main.setContentsMargins(32, 32, 32, 32)
         main.setSpacing(24)
 
-        # Заголовок
         title = QLabel("Калькулятор стоимости")
         title.setStyleSheet(
             f"color: {COLOR_TEXT_PRIMARY}; font-family: 'Inter'; "
@@ -73,26 +73,16 @@ class CalculatorView(QWidget):
         )
         main.addWidget(title)
 
-        # Две колонки
         columns = QHBoxLayout()
         columns.setSpacing(24)
 
-        # Левая — форма
-        form = self._create_form()
-        columns.addWidget(form, 3)
-
-        # Правая — смета
-        summary = self._create_summary()
-        columns.addWidget(summary, 2)
+        columns.addWidget(self._create_form(), 3)
+        columns.addWidget(self._create_summary(), 2)
 
         main.addLayout(columns, 1)
 
     def _create_form(self) -> QWidget:
-        """Создаёт форму ввода (левая колонка).
-
-        Returns:
-            Виджет формы.
-        """
+        """Создаёт форму ввода."""
         form = QFrame()
         form.setStyleSheet(
             f"QFrame {{ background-color: {COLOR_CARD}; "
@@ -100,88 +90,155 @@ class CalculatorView(QWidget):
         )
         layout = QVBoxLayout(form)
         layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(20)
+        layout.setSpacing(12)
+
+        # Клиент
+        layout.addWidget(self._label("Клиент"))
+        client_row = QHBoxLayout()
+        self.client_combo = QComboBox()
+        self.client_combo.setFixedHeight(40)
+        self.client_combo.setStyleSheet(self._input_style())
+        self.client_combo.currentIndexChanged.connect(self._on_client_changed)
+        client_row.addWidget(self.client_combo, 1)
+
+        new_client_btn = QPushButton("+")
+        new_client_btn.setFixedSize(40, 40)
+        new_client_btn.setToolTip("Новый клиент")
+        new_client_btn.setCursor(Qt.PointingHandCursor)
+        new_client_btn.setStyleSheet(self._small_button_style())
+        new_client_btn.clicked.connect(self._on_new_client)
+        client_row.addWidget(new_client_btn)
+        layout.addLayout(client_row)
+
+        # Объект
+        layout.addWidget(self._label("Объект"))
+        obj_row = QHBoxLayout()
+        self.object_combo = QComboBox()
+        self.object_combo.setFixedHeight(40)
+        self.object_combo.setStyleSheet(self._input_style())
+        self.object_combo.currentIndexChanged.connect(self._on_object_changed)
+        obj_row.addWidget(self.object_combo, 1)
+
+        new_obj_btn = QPushButton("+")
+        new_obj_btn.setFixedSize(40, 40)
+        new_obj_btn.setToolTip("Новый объект")
+        new_obj_btn.setCursor(Qt.PointingHandCursor)
+        new_obj_btn.setStyleSheet(self._small_button_style())
+        new_obj_btn.clicked.connect(self._on_new_object)
+        obj_row.addWidget(new_obj_btn)
+        layout.addLayout(obj_row)
 
         # Площадь
-        layout.addWidget(self._create_label("Площадь (м²)"))
+        layout.addWidget(self._label("Площадь (м²)"))
         self.area_input = QDoubleSpinBox()
         self.area_input.setRange(1.0, 10000.0)
         self.area_input.setValue(60.0)
         self.area_input.setSuffix(" м²")
+        self.area_input.setFixedHeight(40)
         self.area_input.setStyleSheet(self._input_style())
         self.area_input.valueChanged.connect(self._recalculate)
         layout.addWidget(self.area_input)
 
         # Тип уборки
-        layout.addWidget(self._create_label("Тип уборки"))
+        layout.addWidget(self._label("Тип уборки"))
         self.cleaning_type = QComboBox()
         self.cleaning_type.addItem("Поддерживающая", "maintenance")
         self.cleaning_type.addItem("Генеральная", "general")
         self.cleaning_type.addItem("После ремонта", "post_renovation")
         self.cleaning_type.addItem("Мойка окон", "windows")
-        self.cleaning_type.setCurrentIndex(1)  # Генеральная по умолчанию
+        self.cleaning_type.setCurrentIndex(1)
+        self.cleaning_type.setFixedHeight(40)
         self.cleaning_type.setStyleSheet(self._input_style())
         self.cleaning_type.currentIndexChanged.connect(self._recalculate)
         layout.addWidget(self.cleaning_type)
 
-        # Коэффициенты
-        coef_row = QHBoxLayout()
+        # Дата и время
+        dt_row = QHBoxLayout()
 
-        coef_left = QVBoxLayout()
-        coef_left.addWidget(self._create_label("Срочность"))
+        d_box = QVBoxLayout()
+        d_box.addWidget(self._label("Дата"))
+        self.date_edit = QDateEdit()
+        self.date_edit.setDate(QDate.currentDate())
+        self.date_edit.setCalendarPopup(True)
+        self.date_edit.setFixedHeight(40)
+        self.date_edit.setStyleSheet(self._input_style())
+        d_box.addWidget(self.date_edit)
+
+        t_box = QVBoxLayout()
+        t_box.addWidget(self._label("Время"))
+        self.time_edit = QTimeEdit()
+        self.time_edit.setTime(QTime(10, 0))
+        self.time_edit.setFixedHeight(40)
+        self.time_edit.setStyleSheet(self._input_style())
+        t_box.addWidget(self.time_edit)
+
+        dt_row.addLayout(d_box)
+        dt_row.addLayout(t_box)
+        layout.addLayout(dt_row)
+
+        # Коэффициенты
+        c_row = QHBoxLayout()
+
+        c1 = QVBoxLayout()
+        c1.addWidget(self._label("Срочность"))
         self.urgency = QDoubleSpinBox()
         self.urgency.setRange(1.0, 3.0)
         self.urgency.setSingleStep(0.1)
         self.urgency.setValue(1.0)
         self.urgency.setPrefix("× ")
+        self.urgency.setFixedHeight(40)
         self.urgency.setStyleSheet(self._input_style())
         self.urgency.valueChanged.connect(self._recalculate)
-        coef_left.addWidget(self.urgency)
+        c1.addWidget(self.urgency)
 
-        coef_right = QVBoxLayout()
-        coef_right.addWidget(self._create_label("Загрязнение"))
+        c2 = QVBoxLayout()
+        c2.addWidget(self._label("Загрязнение"))
         self.dirt = QDoubleSpinBox()
         self.dirt.setRange(1.0, 3.0)
         self.dirt.setSingleStep(0.1)
         self.dirt.setValue(1.0)
         self.dirt.setPrefix("× ")
+        self.dirt.setFixedHeight(40)
         self.dirt.setStyleSheet(self._input_style())
         self.dirt.valueChanged.connect(self._recalculate)
-        coef_right.addWidget(self.dirt)
+        c2.addWidget(self.dirt)
 
-        coef_row.addLayout(coef_left)
-        coef_row.addLayout(coef_right)
-        layout.addLayout(coef_row)
+        c_row.addLayout(c1)
+        c_row.addLayout(c2)
+        layout.addLayout(c_row)
 
-        # Транспорт
-        layout.addWidget(self._create_label("Транспортные расходы (₽)"))
+        # Транспорт и скидка
+        e_row = QHBoxLayout()
+
+        t2 = QVBoxLayout()
+        t2.addWidget(self._label("Транспорт (₽)"))
         self.transport = QDoubleSpinBox()
         self.transport.setRange(0.0, 10000.0)
-        self.transport.setValue(0.0)
         self.transport.setSuffix(" ₽")
+        self.transport.setFixedHeight(40)
         self.transport.setStyleSheet(self._input_style())
         self.transport.valueChanged.connect(self._recalculate)
-        layout.addWidget(self.transport)
+        t2.addWidget(self.transport)
 
-        # Скидка
-        layout.addWidget(self._create_label("Скидка (₽)"))
+        d2 = QVBoxLayout()
+        d2.addWidget(self._label("Скидка (₽)"))
         self.discount = QDoubleSpinBox()
         self.discount.setRange(0.0, 100000.0)
-        self.discount.setValue(0.0)
         self.discount.setSuffix(" ₽")
+        self.discount.setFixedHeight(40)
         self.discount.setStyleSheet(self._input_style())
         self.discount.valueChanged.connect(self._recalculate)
-        layout.addWidget(self.discount)
+        d2.addWidget(self.discount)
+
+        e_row.addLayout(t2)
+        e_row.addLayout(d2)
+        layout.addLayout(e_row)
 
         layout.addStretch()
         return form
 
     def _create_summary(self) -> QWidget:
-        """Создаёт блок сметы (правая колонка).
-
-        Returns:
-            Виджет сметы.
-        """
+        """Создаёт смету."""
         summary = QFrame()
         summary.setStyleSheet(
             f"QFrame {{ background-color: {COLOR_CARD}; "
@@ -189,74 +246,55 @@ class CalculatorView(QWidget):
         )
         layout = QVBoxLayout(summary)
         layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(12)
+        layout.setSpacing(10)
 
-        # Заголовок
-        header = QLabel("Смета")
-        header.setStyleSheet(
+        h = QLabel("Смета")
+        h.setStyleSheet(
             f"color: {COLOR_TEXT_PRIMARY}; font-family: 'Inter'; "
             f"font-size: 18px; font-weight: 600; border: none;"
         )
-        layout.addWidget(header)
-
-        # Разделитель
+        layout.addWidget(h)
         layout.addWidget(self._divider())
 
-        # Строки расчёта
-        self.base_label = self._add_summary_row(layout, "Базовая стоимость")
-        self.tariff_label = self._add_summary_row(layout, "Тариф")
-        self.subtotal_label = self._add_summary_row(layout, "С коэффициентами")
-        self.items_label = self._add_summary_row(layout, "Доп. услуги")
-        self.transport_label = self._add_summary_row(layout, "Транспорт")
-        self.discount_label = self._add_summary_row(layout, "Скидка")
+        self.base_label = self._summary_row(layout, "Базовая стоимость")
+        self.tariff_label = self._summary_row(layout, "Тариф")
+        self.subtotal_label = self._summary_row(layout, "С коэффициентами")
+        self.items_label = self._summary_row(layout, "Доп. услуги")
+        self.transport_label = self._summary_row(layout, "Транспорт")
+        self.discount_label = self._summary_row(layout, "Скидка")
 
         layout.addWidget(self._divider())
 
-        # ИТОГО
-        total_row = QHBoxLayout()
-        total_title = QLabel("ИТОГО:")
-        total_title.setStyleSheet(
+        t_row = QHBoxLayout()
+        ttl = QLabel("ИТОГО:")
+        ttl.setStyleSheet(
             f"color: {COLOR_TEXT_PRIMARY}; font-family: 'Inter'; "
             f"font-size: 18px; font-weight: 700; border: none;"
         )
-        total_row.addWidget(total_title)
-        total_row.addStretch()
+        t_row.addWidget(ttl)
+        t_row.addStretch()
 
         self.total_label = QLabel("0 ₽")
         self.total_label.setStyleSheet(
             f"color: {COLOR_PRIMARY}; font-family: 'Inter'; "
             f"font-size: 24px; font-weight: 700; border: none;"
         )
-        total_row.addWidget(self.total_label)
-        layout.addLayout(total_row)
+        t_row.addWidget(self.total_label)
+        layout.addLayout(t_row)
 
         layout.addStretch()
 
-        # Кнопки
-        save_btn = QPushButton("Сохранить заказ")
-        save_btn.setFixedHeight(44)
-        save_btn.setCursor(Qt.PointingHandCursor)
-        save_btn.setStyleSheet(self._button_style(COLOR_PRIMARY))
-        save_btn.clicked.connect(self._on_save)
-        layout.addWidget(save_btn)
-
-        export_btn = QPushButton("Экспорт PDF")
-        export_btn.setFixedHeight(44)
-        export_btn.setCursor(Qt.PointingHandCursor)
-        export_btn.setStyleSheet(self._button_style_outline())
-        layout.addWidget(export_btn)
+        btn = QPushButton("Сохранить заказ")
+        btn.setFixedHeight(48)
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.setStyleSheet(self._button_style())
+        btn.clicked.connect(self._on_save)
+        layout.addWidget(btn)
 
         return summary
 
-    def _create_label(self, text: str) -> QLabel:
-        """Создаёт label для формы.
-
-        Args:
-            text: Текст.
-
-        Returns:
-            QLabel с серым текстом.
-        """
+    def _label(self, text: str) -> QLabel:
+        """Создаёт label."""
         label = QLabel(text)
         label.setStyleSheet(
             f"color: {COLOR_TEXT_SECONDARY}; font-family: 'Inter'; "
@@ -264,51 +302,37 @@ class CalculatorView(QWidget):
         )
         return label
 
-    def _add_summary_row(self, layout: QVBoxLayout, title: str) -> QLabel:
-        """Добавляет строку в смету.
-
-        Args:
-            layout: Layout сметы.
-            title: Название строки.
-
-        Returns:
-            QLabel со значением (для обновления).
-        """
+    def _summary_row(self, layout: QVBoxLayout, title: str) -> QLabel:
+        """Строка сметы."""
         row = QHBoxLayout()
-
-        title_label = QLabel(title)
-        title_label.setStyleSheet(
+        t = QLabel(title)
+        t.setStyleSheet(
             f"color: {COLOR_TEXT_SECONDARY}; font-family: 'Inter'; "
             f"font-size: 13px; border: none;"
         )
-        row.addWidget(title_label)
+        row.addWidget(t)
         row.addStretch()
 
-        value_label = QLabel("0 ₽")
-        value_label.setStyleSheet(
+        v = QLabel("0 ₽")
+        v.setStyleSheet(
             f"color: {COLOR_TEXT_PRIMARY}; font-family: 'Inter'; "
             f"font-size: 13px; font-weight: 500; border: none;"
         )
-        row.addWidget(value_label)
-
+        row.addWidget(v)
         layout.addLayout(row)
-        return value_label
+        return v
 
     def _divider(self) -> QFrame:
-        """Создаёт разделитель.
-
-        Returns:
-            QFrame-линия.
-        """
+        """Разделитель."""
         line = QFrame()
         line.setFixedHeight(1)
         line.setStyleSheet(f"background-color: {COLOR_BORDER}; border: none;")
         return line
 
     def _input_style(self) -> str:
-        """QSS для полей ввода."""
+        """QSS для полей."""
         return f"""
-            QDoubleSpinBox, QComboBox, QLineEdit {{
+            QDoubleSpinBox, QComboBox, QDateEdit, QTimeEdit {{
                 background-color: {COLOR_CARD};
                 border: 1px solid {COLOR_BORDER};
                 border-radius: 6px;
@@ -316,47 +340,108 @@ class CalculatorView(QWidget):
                 font-family: 'Inter';
                 font-size: 14px;
                 color: {COLOR_TEXT_PRIMARY};
-                min-height: 24px;
             }}
-            QDoubleSpinBox:focus, QComboBox:focus, QLineEdit:focus {{
+            QDoubleSpinBox:focus, QComboBox:focus, QDateEdit:focus, QTimeEdit:focus {{
                 border: 2px solid {COLOR_PRIMARY};
             }}
         """
 
-    def _button_style(self, color: str) -> str:
-        """QSS для главной кнопки."""
+    def _button_style(self) -> str:
+        """QSS кнопки."""
         return f"""
             QPushButton {{
-                background-color: {color};
+                background-color: {COLOR_PRIMARY};
                 color: white;
                 border: none;
                 border-radius: 8px;
                 font-family: 'Inter';
-                font-size: 14px;
+                font-size: 15px;
                 font-weight: 600;
             }}
             QPushButton:hover {{ background-color: #0F766E; }}
         """
 
-    def _button_style_outline(self) -> str:
-        """QSS для второстепенной кнопки."""
+    def _load_clients(self) -> None:
+        """Загружает клиентов."""
+        self.client_combo.clear()
+        clients = self.client_repo.get_all()
+        for c in clients:
+            self.client_combo.addItem(c.name, c.client_id)
+        if clients:
+            self._on_client_changed()
+
+    def _small_button_style(self) -> str:
+        """QSS для маленькой кнопки +."""
         return f"""
             QPushButton {{
-                background-color: transparent;
-                color: {COLOR_TEXT_SECONDARY};
-                border: 1px solid {COLOR_BORDER};
-                border-radius: 8px;
+                background-color: {COLOR_PRIMARY};
+                color: white;
+                border: none;
+                border-radius: 6px;
                 font-family: 'Inter';
-                font-size: 14px;
+                font-size: 20px;
+                font-weight: 600;
             }}
-            QPushButton:hover {{
-                background-color: #F1F5F9;
-                color: {COLOR_TEXT_PRIMARY};
-            }}
+            QPushButton:hover {{ background-color: #0F766E; }}
         """
 
+    def _on_new_client(self) -> None:
+        """Открывает модалку создания клиента."""
+        from src.views.clients.client_form_dialog import ClientFormDialog
+
+        dialog = ClientFormDialog(parent=self)
+        if dialog.exec_() == dialog.Accepted:
+            data = dialog.get_data()
+            client = self.client_repo.create(**data)
+            print(f"[CalculatorView] Создан клиент: {data['name']}")
+            self._load_clients()
+            idx = self.client_combo.findData(client.client_id)
+            if idx >= 0:
+                self.client_combo.setCurrentIndex(idx)
+
+    def _on_new_object(self) -> None:
+        """Открывает модалку создания объекта."""
+        from src.views.clients.object_form_dialog import ObjectFormDialog
+
+        client_id = self.client_combo.currentData()
+        if not client_id:
+            QMessageBox.warning(self, "Ошибка", "Сначала выберите клиента")
+            return
+
+        dialog = ObjectFormDialog(client_id=client_id, parent=self)
+        if dialog.exec_() == dialog.Accepted:
+            data = dialog.get_data()
+            obj = self.object_repo.create(**data)
+            print(f"[CalculatorView] Создан объект: {data['address']}")
+            self._on_client_changed()
+            idx = self.object_combo.findData(obj.object_id)
+            if idx >= 0:
+                self.object_combo.setCurrentIndex(idx)
+
+    def _on_client_changed(self) -> None:
+        """Загружает объекты клиента."""
+        self.object_combo.clear()
+        client_id = self.client_combo.currentData()
+        if not client_id:
+            return
+        objects = self.object_repo.get_by_client(client_id)
+        for o in objects:
+            label = f"{o.address} ({float(o.area):.0f} м²)"
+            self.object_combo.addItem(label, o.object_id)
+        if objects:
+            self.area_input.setValue(float(objects[0].area))
+
+    def _on_object_changed(self) -> None:
+        """Обновляет площадь."""
+        object_id = self.object_combo.currentData()
+        if not object_id:
+            return
+        obj = self.object_repo.get_by_id(object_id)
+        if obj:
+            self.area_input.setValue(float(obj.area))
+
     def _recalculate(self) -> None:
-        """Пересчитывает смету при любом изменении полей."""
+        """Пересчитывает смету."""
         data = CalculationInput(
             area=self.area_input.value(),
             cleaning_type=self.cleaning_type.currentData(),
@@ -366,8 +451,8 @@ class CalculatorView(QWidget):
             discount=self.discount.value(),
         )
         result = self.calculator.calculate(data)
+        self._last_result = result
 
-        # Обновляем смету
         self.base_label.setText(f"{result.base_price:,.2f} ₽")
         self.tariff_label.setText(f"{result.tariff:,.0f} ₽/м²")
         self.subtotal_label.setText(f"{result.subtotal:,.2f} ₽")
@@ -377,15 +462,33 @@ class CalculatorView(QWidget):
         self.total_label.setText(f"{result.total:,.2f} ₽")
 
     def _on_save(self) -> None:
-        """Обрабатывает сохранение заказа."""
-        data = {
-            "area": self.area_input.value(),
+        """Сохраняет заказ."""
+        client_id = self.client_combo.currentData()
+        object_id = self.object_combo.currentData()
+
+        if not client_id:
+            QMessageBox.warning(self, "Ошибка", "Выберите клиента")
+            return
+        if not object_id:
+            QMessageBox.warning(self, "Ошибка", "Выберите объект")
+            return
+
+        d_q = self.date_edit.date()
+        t_q = self.time_edit.time()
+
+        dto = {
+            "client_id": client_id,
+            "object_id": object_id,
             "cleaning_type": self.cleaning_type.currentData(),
+            "area": self.area_input.value(),
             "urgency_coef": self.urgency.value(),
             "dirt_coef": self.dirt.value(),
-            "transport": self.transport.value(),
             "discount": self.discount.value(),
-            "total": self.total_label.text(),
+            "total_price": self._last_result.total if self._last_result else 0.0,
+            "planned_date": date(d_q.year(), d_q.month(), d_q.day()),
+            "planned_start": time(t_q.hour(), t_q.minute()),
+            "notes": None,
         }
-        print(f"[CalculatorView] Сохранение: {data}")
-        self.save_requested.emit(data)
+
+        print(f"[CalculatorView] Сохранение: {dto}")
+        self.save_requested.emit(dto)

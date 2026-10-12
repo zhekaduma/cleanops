@@ -37,18 +37,29 @@ class ReportService:
 
         Returns:
             Словарь с ключевыми метриками:
-            - orders_today: заказов на сегодня
+            - orders_today: активных заказов на сегодня
             - revenue_today: выручка за сегодня
             - active_crews: активных бригад
             - avg_check: средний чек
         """
         today = date.today()
-        orders_today = self.order_repo.get_by_date(today)
+        all_orders_today = self.order_repo.get_by_date(today)
+
+        # Активные заказы — не завершённые, не оплаченные, не отменённые
+        inactive_statuses = (
+            OrderStatus.COMPLETED,
+            OrderStatus.PAID,
+            OrderStatus.CANCELLED,
+        )
+        active_orders_today = [
+            o for o in all_orders_today
+            if o.status not in inactive_statuses
+        ]
 
         # Выручка за сегодня — сумма оплаченных платежей
         payments_today = self.payment_repo.get_by_date(today)
         revenue_today = sum(
-            p.amount for p in payments_today if p.status == PaymentStatus.PAID
+            float(p.amount) for p in payments_today if p.status == PaymentStatus.PAID
         )
 
         active_crews = len(self.crew_repo.get_active())
@@ -56,15 +67,15 @@ class ReportService:
         # Средний чек — по оплаченным заказам
         paid_orders = self.order_repo.get_by_status(OrderStatus.PAID)
         avg_check = (
-            sum(o.total_price for o in paid_orders) / len(paid_orders)
+            sum(float(o.total_price) for o in paid_orders) / len(paid_orders)
             if paid_orders else 0.0
         )
 
         return {
-            "orders_today": len(orders_today),
-            "revenue_today": round(float(revenue_today), 2),
+            "orders_today": len(active_orders_today),
+            "revenue_today": round(revenue_today, 2),
             "active_crews": active_crews,
-            "avg_check": round(float(avg_check), 2),
+            "avg_check": round(avg_check, 2),
         }
 
     def get_revenue_for_period(self, start: date, end: date) -> Dict:

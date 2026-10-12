@@ -92,6 +92,7 @@ class MainWindow(QMainWindow):
         self,
         user_name: str = "Иванов Иван",
         user_role: str = "Менеджер",
+        current_user=None,
         parent: Optional[QWidget] = None,
     ) -> None:
         """Инициализирует главное окно.
@@ -104,6 +105,7 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self.user_name = user_name
         self.user_role = user_role
+        self.current_user = current_user
         self.views: Dict[str, int] = {}
 
         self.setWindowTitle("CleanOps — Управление клининговой службой")
@@ -158,12 +160,69 @@ class MainWindow(QMainWindow):
             index = self.content.addWidget(view)
             self.views[item_id] = index
 
+    def _on_order_save_requested(self, data: dict) -> None:
+        """Обрабатывает сохранение заказа из CalculatorView.
+
+        Args:
+            data: Словарь с данными заказа.
+        """
+        try:
+            from PyQt5.QtWidgets import QMessageBox
+            from src.services import OrderService
+            from src.services.dtos import OrderCreateDTO
+
+            dto = OrderCreateDTO(
+                client_id=data["client_id"],
+                object_id=data["object_id"],
+                manager_id=self.current_user.user_id if self.current_user else None,
+                cleaning_type=data["cleaning_type"],
+                area=data["area"],
+                urgency_coef=data["urgency_coef"],
+                dirt_coef=data["dirt_coef"],
+                discount=data["discount"],
+                total_price=data["total_price"],
+                planned_date=data.get("planned_date"),
+                planned_start=data.get("planned_start"),
+                notes=data.get("notes"),
+            )
+
+            svc = OrderService()
+            order = svc.create_order(dto)
+            print(f"✅ Заказ #{order.order_id} создан, сумма: {order.total_price} Р")
+
+            QMessageBox.information(
+                self,
+                "Заказ создан",
+                f"Заказ #{order.order_id} создан! Сумма: {float(order.total_price):,.2f} Р",
+            )
+
+            # Обновляем список заказов и переходим
+            if "orders" in self.views:
+                orders_view = self.content.widget(self.views["orders"])
+                if hasattr(orders_view, "refresh"):
+                    orders_view.refresh()
+
+            self.sidebar.set_active("orders")
+            self._on_navigation("orders")
+
+        except Exception as e:
+            from PyQt5.QtWidgets import QMessageBox
+            print(f"❌ Ошибка: {e}")
+            QMessageBox.critical(self, "Ошибка", f"Не удалось создать заказ: {e}")
+
+    def _on_new_order_requested(self) -> None:
+        """Переключает на экран Калькулятор для создания заказа."""
+        print("[MainWindow] Запрос на создание нового заказа")
+        self.sidebar.set_active("calculator")
+        self._on_navigation("calculator")
+
     def _register_real_views(self) -> None:
         """Регистрирует реальные экраны вместо заглушек."""
         # Дашборд
         try:
             from src.views.dashboard.dashboard_view import DashboardView
             dashboard = DashboardView(user_name=self.user_name)
+            dashboard.new_order_requested.connect(self._on_new_order_requested)
             self.register_view("dashboard", dashboard)
         except Exception as e:
             print(f"Не удалось загрузить DashboardView: {e}")
@@ -172,6 +231,7 @@ class MainWindow(QMainWindow):
         try:
             from src.views.calculator.calculator_view import CalculatorView
             calculator = CalculatorView()
+            calculator.save_requested.connect(self._on_order_save_requested)
             self.register_view("calculator", calculator)
         except Exception as e:
             print(f"Не удалось загрузить CalculatorView: {e}")
@@ -179,7 +239,8 @@ class MainWindow(QMainWindow):
         # Заказы
         try:
             from src.views.orders.orders_view import OrdersView
-            orders = OrdersView()
+            orders = OrdersView(current_user=self.current_user)
+            orders.new_order_requested.connect(self._on_new_order_requested)
             self.register_view("orders", orders)
         except Exception as e:
             print(f"Не удалось загрузить OrdersView: {e}")
@@ -224,6 +285,15 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Не удалось загрузить ReferencesView: {e}")
 
+        # Календарь
+        try:
+            from src.views.calendar.calendar_view import CalendarView
+            calendar = CalendarView()
+            calendar.new_order_requested.connect(self._on_new_order_requested)
+            self.register_view("calendar", calendar)
+        except Exception as e:
+            print(f"Не удалось загрузить CalendarView: {e}")
+
     def _on_navigation(self, item_id: str) -> None:
         """Обрабатывает переключение раздела.
 
@@ -232,6 +302,12 @@ class MainWindow(QMainWindow):
         """
         if item_id in self.views:
             self.content.setCurrentIndex(self.views[item_id])
+
+            # Обновляем данные при переходе на некоторые экраны
+            if item_id in ("orders", "dashboard"):
+                view = self.content.widget(self.views[item_id])
+                if hasattr(view, "refresh"):
+                    view.refresh()
 
         # Обновляем заголовок Topbar
         title = self.TITLES.get(item_id, "")

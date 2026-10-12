@@ -88,6 +88,7 @@ class ClientsView(QWidget):
         new_btn = QPushButton("+  Новый клиент")
         new_btn.setCursor(Qt.PointingHandCursor)
         new_btn.setFixedSize(160, 44)
+        new_btn.clicked.connect(self._on_new_client)
         new_btn.setStyleSheet(
             f"""
             QPushButton {{
@@ -290,6 +291,23 @@ class ClientsView(QWidget):
         """Обрабатывает ввод в поиск."""
         client_type = self.type_filter.currentData()
         self._load_clients(client_type=client_type, query=text)
+
+    def _on_new_client(self) -> None:
+        """Открывает модалку создания клиента."""
+        from src.views.clients.client_form_dialog import ClientFormDialog
+
+        dialog = ClientFormDialog(parent=self)
+        if dialog.exec_() == dialog.Accepted:
+            data = dialog.get_data()
+            self.client_repo.create(**data)
+            print(f"[ClientsView] Создан клиент: {data['name']}")
+            self._load_clients()
+
+    def refresh(self) -> None:
+        """Перезагружает таблицу."""
+        client_type = self.type_filter.currentData()
+        query = self.search_input.text()
+        self._load_clients(client_type=client_type, query=query)
 
     def _on_filter(self) -> None:
         """Обрабатывает изменение фильтра типа."""

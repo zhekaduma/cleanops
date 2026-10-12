@@ -31,3 +31,5 @@ venv39/
 *.bak
 *.tmp
 *.save
+*.old
+*.save

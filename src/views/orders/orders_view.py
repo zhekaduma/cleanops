@@ -8,7 +8,7 @@
 
 from typing import Optional
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
     QComboBox,
     QFrame,
@@ -41,15 +41,26 @@ class OrdersView(QWidget):
 
     Показывает таблицу всех заказов с фильтрами. Данные берутся из
     OrderRepository.
+
+    Signals:
+        new_order_requested: Запрос на создание нового заказа.
     """
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    new_order_requested = pyqtSignal()
+
+    def __init__(
+        self,
+        current_user=None,
+        parent: Optional[QWidget] = None,
+    ) -> None:
         """Инициализирует экран заказов.
 
         Args:
+            current_user: Текущий пользователь.
             parent: Родительский виджет.
         """
         super().__init__(parent)
+        self.current_user = current_user
         self.order_repo = OrderRepository()
 
         self.setStyleSheet(f"background-color: {COLOR_BG};")
@@ -173,6 +184,9 @@ class OrdersView(QWidget):
         self.table.setShowGrid(False)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        # Двойной клик → открыть карточку заказа
+        self.table.cellDoubleClicked.connect(self._on_order_double_clicked)
+
         self.table.setStyleSheet(
             f"""
             QTableWidget {{
@@ -284,8 +298,45 @@ class OrdersView(QWidget):
         status = self.status_filter.currentData()
         self._load_orders(status=status, query=text)
 
+    def _on_order_double_clicked(self, row: int, col: int) -> None:
+        """Открывает карточку заказа по двойному клику.
+
+        Args:
+            row: Индекс строки.
+            col: Индекс колонки.
+        """
+        item = self.table.item(row, 0)
+        if not item:
+            return
+
+        order_id_text = item.text().replace("#", "").strip()
+        try:
+            order_id = int(order_id_text)
+        except ValueError:
+            return
+
+        from src.views.orders.order_detail_dialog import OrderDetailDialog
+
+        dialog = OrderDetailDialog(
+            order_id=order_id,
+            current_user=self.current_user,
+            parent=self,
+        )
+        if dialog.exec_() == dialog.Accepted:
+            self.refresh()
+
     def _on_filter(self) -> None:
         """Обрабатывает изменение фильтра статуса."""
         status = self.status_filter.currentData()
         query = self.search_input.text()
         self._load_orders(status=status, query=query)
+
+    def refresh(self) -> None:
+        """Перезагружает список заказов.
+
+        Вызывается после создания нового заказа.
+        """
+        status = self.status_filter.currentData()
+        query = self.search_input.text()
+        self._load_orders(status=status, query=query)
+        print("[OrdersView] Список заказов обновлён")
