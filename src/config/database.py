@@ -3,15 +3,16 @@
 Модуль содержит Singleton-класс DatabaseConnection, который управляет
 единственным подключением к БД и предоставляет фабрику сессий SQLAlchemy.
 
-Attributes:
-    engine: SQLAlchemy Engine — движок подключения к БД.
-    SessionLocal: Фабрика сессий (sessionmaker).
+Для SQLite используется StaticPool — одно общее соединение на всё
+приложение. Это предотвращает исчерпание пула при множественных
+репозиториях (каждый репозиторий создаёт свою сессию).
 """
 
 from typing import Optional
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from src.config.app_config import config
 
@@ -28,12 +29,7 @@ class DatabaseConnection:
     """Singleton-подключение к базе данных.
 
     Управляет единственным Engine и предоставляет сессии для работы
-    с БД. Позволяет избежать множественных подключений и утечек ресурсов.
-
-    Attributes:
-        _instance: Единственный экземпляр класса.
-        engine: SQLAlchemy Engine для подключения к SQLite.
-        SessionLocal: Фабрика сессий.
+    с БД. Для SQLite используется StaticPool — одно общее соединение.
     """
 
     _instance: Optional["DatabaseConnection"] = None
@@ -47,14 +43,17 @@ class DatabaseConnection:
 
     def _initialize(self) -> None:
         """Инициализирует Engine и фабрику сессий."""
-        # SQLite URL: файл в data/cleanops.db
         db_url = f"sqlite:///{config.DB_PATH}"
 
-        # echo=True — выводит SQL-запросы в консоль (для отладки)
+        # SQLite: используем StaticPool — одно соединение на всё приложение.
+        # connect_args={"check_same_thread": False} — разрешаем доступ
+        # из разных потоков (необходимо для PyQt).
         self.engine: Engine = create_engine(
             db_url,
             echo=config.DEBUG,
             future=True,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
         )
 
         # Фабрика сессий — каждый вызов создаёт новую сессию
@@ -70,21 +69,11 @@ class DatabaseConnection:
 
         Returns:
             Session: Сессия SQLAlchemy.
-
-        Example:
-            >>> db = DatabaseConnection()
-            >>> with db.get_session() as session:
-            ...     session.add(obj)
-            ...     session.commit()
         """
         return self.SessionLocal()
 
     def create_all_tables(self) -> None:
-        """Создаёт все таблицы в БД согласно зарегистрированным моделям.
-
-        Внимание: модели должны быть импортированы до вызова этого метода,
-        иначе SQLAlchemy не увидит их и не создаст таблицы.
-        """
+        """Создаёт все таблицы в БД согласно зарегистрированным моделям."""
         Base.metadata.create_all(self.engine)
 
     def drop_all_tables(self) -> None:
@@ -92,5 +81,5 @@ class DatabaseConnection:
         Base.metadata.drop_all(self.engine)
 
 
-# Глобальный экземпляр — импортируется в других модулях
+# Глобальный экземпляр
 db = DatabaseConnection()

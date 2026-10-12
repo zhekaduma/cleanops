@@ -69,6 +69,17 @@ class Application:
     def _on_logout(self) -> None:
         """Обрабатывает выход."""
         print("[Application] Выход")
+
+        # Логируем выход в audit log
+        if self.current_user:
+            try:
+                from src.services import AuthService
+                auth = AuthService()
+                auth.logout(self.current_user)
+                print(f"[Application] Logout записан для {self.current_user.username}")
+            except Exception as e:
+                print(f"[Application] Не удалось записать logout: {e}")
+
         if self.main_window:
             self.main_window.hide()
             self.main_window.deleteLater()

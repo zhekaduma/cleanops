@@ -146,7 +146,7 @@ class MainWindow(QMainWindow):
             user_role=self.user_role,
             notifications_count=0,
         )
-        self.topbar.logout_requested.connect(self._on_logout)
+        # logout обрабатывается в Application (main.py)
 
         main_layout.addWidget(self.topbar)
         main_layout.addLayout(bottom_layout)
