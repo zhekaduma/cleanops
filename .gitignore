@@ -30,3 +30,4 @@ Thumbs.db
 venv39/
 *.bak
 *.tmp
+*.save
