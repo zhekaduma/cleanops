@@ -3,6 +3,7 @@
 Реализует F-7.3: audit log с фильтрами по действию и пользователю.
 """
 
+from datetime import date, timedelta
 from typing import Optional
 
 from PyQt5.QtCore import Qt
@@ -77,7 +78,9 @@ class LogView(QWidget):
 
         # Фильтры
         filters = QHBoxLayout()
+        filters.setSpacing(12)
 
+        # Поиск
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("🔍  Поиск по сущности или ID")
         self.search_input.setFixedHeight(40)
@@ -85,6 +88,7 @@ class LogView(QWidget):
         self.search_input.textChanged.connect(self._load_logs)
         filters.addWidget(self.search_input, 2)
 
+        # Фильтр по действию
         self.action_filter = QComboBox()
         self.action_filter.addItem("Все действия", None)
         self.action_filter.addItem("Создание", "create")
@@ -93,9 +97,23 @@ class LogView(QWidget):
         self.action_filter.addItem("Вход", "login")
         self.action_filter.addItem("Выход", "logout")
         self.action_filter.setFixedHeight(40)
+        self.action_filter.setMinimumWidth(160)
         self.action_filter.setStyleSheet(self._input_style())
         self.action_filter.currentIndexChanged.connect(self._load_logs)
         filters.addWidget(self.action_filter)
+
+        # Фильтр по периоду ← НОВЫЙ
+        self.period_filter = QComboBox()
+        self.period_filter.addItem("За всё время", "all")
+        self.period_filter.addItem("Сегодня", "today")
+        self.period_filter.addItem("За неделю", "week")
+        self.period_filter.addItem("За месяц", "month")
+        self.period_filter.addItem("За год", "year")
+        self.period_filter.setFixedHeight(40)
+        self.period_filter.setMinimumWidth(160)
+        self.period_filter.setStyleSheet(self._input_style())
+        self.period_filter.currentIndexChanged.connect(self._load_logs)
+        filters.addWidget(self.period_filter)
 
         main.addLayout(filters)
 
@@ -109,9 +127,9 @@ class LogView(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
+        self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels([
-            "Время", "Пользователь", "Действие", "Объект", "Детали",
+            "Время", "Пользователь", "Действие", "Объект",
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
@@ -164,16 +182,43 @@ class LogView(QWidget):
             }}
         """
 
+    def _get_date_range(self) -> tuple:
+        """Возвращает диапазон дат для фильтра периода.
+
+        Returns:
+            Кортеж (start, end) или (None, None) для «За всё время».
+        """
+        period = self.period_filter.currentData()
+        today = date.today()
+
+        if period == "today":
+            return today, today
+        elif period == "week":
+            return today - timedelta(days=7), today
+        elif period == "month":
+            return today - timedelta(days=30), today
+        elif period == "year":
+            return today - timedelta(days=365), today
+        else:  # all
+            return None, None
+
     def _load_logs(self) -> None:
-        """Загружает записи журнала."""
+        """Загружает записи журнала с учётом фильтров."""
         action = self.action_filter.currentData()
         query = self.search_input.text().lower()
+        start, end = self._get_date_range()
 
-        if action:
-            logs = self.audit_repo.get_by_action(action)
+        # 1. Загружаем по периоду
+        if start and end:
+            logs = self.audit_repo.get_by_date_range(start, end)
         else:
-            logs = self.audit_repo.get_recent(limit=100)
+            logs = self.audit_repo.get_recent(limit=500)
 
+        # 2. Фильтр по действию
+        if action:
+            logs = [log for log in logs if log.action == action]
+
+        # 3. Поиск по сущности / ID
         if query:
             logs = [
                 log for log in logs
@@ -219,9 +264,13 @@ class LogView(QWidget):
             if log.entity_id:
                 entity += f" #{log.entity_id}"
 
-            self.table.setItem(i, 0, QTableWidgetItem(time_str))
+            time_item = QTableWidgetItem(time_str)
+            # Детали — в tooltip при наведении
+            if log.details:
+                time_item.setToolTip(f"Детали: {log.details}")
+
+            self.table.setItem(i, 0, time_item)
             self.table.setItem(i, 1, QTableWidgetItem(user_name))
             self.table.setItem(i, 3, QTableWidgetItem(entity))
-            self.table.setItem(i, 4, QTableWidgetItem(log.details or "—"))
 
             self.table.setRowHeight(i, 52)

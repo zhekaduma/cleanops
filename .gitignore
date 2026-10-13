@@ -33,3 +33,18 @@ venv39/
 *.save
 *.old
 *.save
+
+# PyInstaller
+dist/
+build/
+*.spec.bak
+
+# Отчёты
+finance_report_*.pdf
+finance_report_*.xlsx
+*.xlsx
+*.csv
+
+# Личные файлы
+Токен_*.txt
+код_*.txt

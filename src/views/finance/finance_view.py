@@ -128,9 +128,73 @@ class FinanceView(QWidget):
             QPushButton:hover {{ background-color: #F1F5F9; }}
             """
         )
+        export_btn.clicked.connect(self._on_export)
         layout.addWidget(export_btn)
 
         return header
+
+    def _on_export(self) -> None:
+        """Обрабатывает нажатие кнопки «Экспорт»."""
+        from datetime import date, timedelta
+
+        from PyQt5.QtWidgets import QFileDialog, QMessageBox
+
+        from src.services.export_service import ExportService
+
+        # Диалог выбора файла
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Сохранить отчёт",
+            f"finance_report_{date.today().strftime('%Y%m%d')}.xlsx",
+            "Excel (*.xlsx);;CSV (*.csv);;PDF (*.pdf)",
+        )
+
+        if not file_path:
+            return
+
+        # Формат по расширению
+        if file_path.endswith(".xlsx"):
+            format_type = "excel"
+        elif file_path.endswith(".csv"):
+            format_type = "csv"
+        elif file_path.endswith(".pdf"):
+            format_type = "pdf"
+        else:
+            if "CSV" in selected_filter:
+                format_type = "csv"
+                file_path += ".csv"
+            elif "PDF" in selected_filter:
+                format_type = "pdf"
+                file_path += ".pdf"
+            else:
+                format_type = "excel"
+                file_path += ".xlsx"
+
+        period_end = date.today()
+        period_start = period_end - timedelta(days=30)
+
+        try:
+            service = ExportService()
+            success = service.export_finance_report(
+                path=file_path,
+                format=format_type,
+                period_start=period_start,
+                period_end=period_end,
+            )
+
+            if success:
+                print(f"[FinanceView] Экспорт успешен: {file_path}")
+                QMessageBox.information(
+                    self, "Экспорт завершён",
+                    f"Файл сохранён:\n{file_path}",
+                )
+            else:
+                QMessageBox.critical(
+                    self, "Ошибка", "Не удалось сохранить файл."
+                )
+        except Exception as e:
+            print(f"[FinanceView] Ошибка экспорта: {e}")
+            QMessageBox.critical(self, "Ошибка", f"Ошибка экспорта:\n{e}")
 
     def _create_kpi_row(self) -> QWidget:
         """Создаёт ряд KPI-карточек.

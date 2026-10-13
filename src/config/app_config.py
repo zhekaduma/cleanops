@@ -4,6 +4,7 @@
 приложения в одном месте: пути, параметры БД, режимы работы.
 """
 
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -35,9 +36,15 @@ class AppConfig:
 
     def _initialize(self) -> None:
         """Инициализирует настройки приложения."""
-        # BASE_DIR — на 2 уровня выше файла app_config.py
-        # src/config/app_config.py → src/config/ → src/ → корень проекта
-        self.BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
+        # BASE_DIR:
+        # - если запущено из PyInstaller (.exe) — используем временную папку _MEIPASS
+        # - если обычный запуск Python — корень проекта
+        if getattr(sys, "frozen", False):
+            # Запущено из PyInstaller — папка распаковки
+            self.BASE_DIR: Path = Path(sys._MEIPASS)
+        else:
+            # Обычный Python — src/config/app_config.py → корень проекта
+            self.BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
         self.DATA_DIR: Path = self.BASE_DIR / "data"
         self.DB_PATH: Path = self.DATA_DIR / "cleanops.db"
 

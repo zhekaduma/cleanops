@@ -99,6 +99,7 @@ class UsersView(QWidget):
             QPushButton:hover {{ background-color: #0F766E; }}
             """
         )
+        new_btn.clicked.connect(self._on_new_user)
         header.addWidget(new_btn)
 
         main.addLayout(header)
@@ -146,6 +147,7 @@ class UsersView(QWidget):
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setStyleSheet(self._table_style())
+        self.table.cellDoubleClicked.connect(self._on_user_double_clicked)
         layout.addWidget(self.table)
 
         main.addWidget(block, 1)
@@ -195,6 +197,59 @@ class UsersView(QWidget):
                 color: {COLOR_TEXT_PRIMARY};
             }}
         """
+
+    def _on_new_user(self) -> None:
+        """Открывает диалог создания пользователя."""
+        from src.views.users.user_form_dialog import UserFormDialog
+
+        dialog = UserFormDialog(parent=self)
+        if dialog.exec_() == dialog.Accepted:
+            data = dialog.get_data()
+            from src.services import AuthService
+            auth = AuthService()
+
+            user = auth.create_user(
+                username=data["username"],
+                password=data["password"],
+                full_name=data["full_name"],
+                role=data["role"],
+                email=data["email"],
+                phone=data["phone"],
+            )
+            if user:
+                print(f"[UsersView] Создан пользователь: {user.username} ({user.role})")
+                self._load_users()
+
+    def _on_user_double_clicked(self, row: int, col: int) -> None:
+        """Открывает редактирование пользователя."""
+        item = self.table.item(row, 1)
+        if not item:
+            return
+
+        username = item.text()
+        user = self.user_repo.get_by_username(username)
+        if not user:
+            return
+
+        from src.views.users.user_form_dialog import UserFormDialog
+        dialog = UserFormDialog(parent=self, user=user)
+        if dialog.exec_() == dialog.Accepted:
+            data = dialog.get_data()
+            user.full_name = data["full_name"]
+            user.email = data["email"]
+            user.phone = data["phone"]
+            user.role = data["role"]
+            user.is_active = data["is_active"]
+            if data["password"]:
+                from src.services import AuthService
+                user.password_hash = AuthService.hash_password(data["password"])
+            self.user_repo.session.commit()
+            print(f"[UsersView] Обновлён: {user.username}")
+            self._load_users()
+
+    def refresh(self) -> None:
+        """Перезагружает таблицу."""
+        self._load_users()
 
     def _load_users(self) -> None:
         """Загружает список пользователей."""

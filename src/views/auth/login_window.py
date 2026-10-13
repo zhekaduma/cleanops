@@ -171,6 +171,37 @@ class LoginWindow(QWidget):
         self.login_button.clicked.connect(self._on_login)
         layout.addWidget(self.login_button)
 
+        # Ссылка «Зарегистрироваться»
+        register_row = QHBoxLayout()
+        register_row.addStretch()
+
+        no_account = QLabel("Нет аккаунта?")
+        no_account.setStyleSheet(
+            f"color: {COLOR_TEXT_SECONDARY}; font-family: 'Inter'; font-size: 13px;"
+        )
+        register_row.addWidget(no_account)
+
+        register_btn = QPushButton("Зарегистрироваться")
+        register_btn.setCursor(Qt.PointingHandCursor)
+        register_btn.setStyleSheet(
+            f"""
+            QPushButton {{
+                background-color: transparent;
+                color: {COLOR_PRIMARY};
+                border: none;
+                font-family: 'Inter';
+                font-size: 13px;
+                font-weight: 600;
+                text-decoration: underline;
+            }}
+            QPushButton:hover {{ color: {COLOR_PRIMARY_HOVER}; }}
+            """
+        )
+        register_btn.clicked.connect(self._on_register)
+        register_row.addWidget(register_btn)
+        register_row.addStretch()
+        layout.addLayout(register_row)
+
         layout.addStretch()
         return card
 
@@ -218,6 +249,22 @@ class LoginWindow(QWidget):
                 background-color: #115E59;
             }}
         """
+
+    def _on_register(self) -> None:
+        """Открывает диалог регистрации."""
+        from src.views.auth.register_dialog import RegisterDialog
+
+        dialog = RegisterDialog(parent=self)
+        if dialog.exec_() == dialog.Accepted:
+            # Автоподстановка логина в форму входа
+            creds = dialog.get_credentials()
+            self.username_input.setText(creds["username"])
+            self.password_input.setText(creds["password"])
+            self.error_label.setText("Регистрация успешна! Нажмите «Войти»")
+            self.error_label.setStyleSheet(
+                "color: #22C55E; font-family: 'Inter'; font-size: 13px;"
+            )
+            self.error_label.setVisible(True)
 
     def _on_login(self) -> None:
         """Обрабатывает нажатие кнопки «Войти»."""
