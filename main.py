@@ -94,6 +94,14 @@ def main() -> None:
     print("CleanOps starting...")
     print("Логины: admin/admin123, manager/manager123, cleaner/clean123")
 
+    # Автосоздание БД при первом запуске
+    try:
+        from src.config.database import db
+        db.create_all_tables()
+        print("[Application] БД проверена/создана")
+    except Exception as e:
+        print(f"[Application] Ошибка создания БД: {e}")
+
     application = Application()
     sys.exit(application.run())
 

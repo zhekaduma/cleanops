@@ -1,11 +1,12 @@
-# -*- mode: python ; coding: utf-8 -*-
+tas=[
+    ('resources', 'resources'),
+    ('scripts', 'scripts') ,# -*- mode: python ; coding: utf-8 -*-
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=[
-        ('data', 'data'),
         ('resources', 'resources'),
         ('scripts', 'scripts'),
     ],
