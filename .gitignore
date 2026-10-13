@@ -48,3 +48,9 @@ finance_report_*.xlsx
 # Личные файлы
 Токен_*.txt
 код_*.txt
+cleanops.spec 
+cleanops.spec 
+init_admin.py 
+reset_passwords.py 
+dist/ 
+build/ 

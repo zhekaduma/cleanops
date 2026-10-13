@@ -43,6 +43,21 @@ class DatabaseConnection:
 
     def _initialize(self) -> None:
         """Инициализирует Engine и фабрику сессий."""
+        import shutil
+
+        # При запуске из .exe — копируем встроенную БД рядом с .exe,
+        # если её там ещё нет
+        if getattr(__import__("sys"), "frozen", False):
+            db_path = config.DB_PATH
+
+            # Если БД рядом с .exe нет — копируем из _MEIPASS
+            if not db_path.exists():
+                meipass_db = config._MEIPASS_DIR / "data" / "cleanops.db"
+                if meipass_db.exists():
+                    db_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy(meipass_db, db_path)
+                    print(f"[Database] БД скопирована из _MEIPASS: {db_path}")
+
         db_url = f"sqlite:///{config.DB_PATH}"
 
         # SQLite: используем StaticPool — одно соединение на всё приложение.
