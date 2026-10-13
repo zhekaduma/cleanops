@@ -1,0 +1,56 @@
+name: Build CleanOps
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install SQLAlchemy==2.0.25 bcrypt==4.1.2 pytest==7.4.4 reportlab==4.0.9 openpyxl==3.1.2 PyQt5==5.15.10 pyinstaller==6.3.0
+      
+      - name: Build with PyInstaller
+        run: pyinstaller cleanops.spec
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CleanOps-Windows
+          path: dist/CleanOps.exe
+  
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          sudo apt install libxcb-cursor0 libxkbcommon-x11-0
+          pip install SQLAlchemy==2.0.25 bcrypt==4.1.2 pytest==7.4.4 reportlab==4.0.9 openpyxl==3.1.2 PyQt5==5.15.10 pyinstaller==6.3.0
+      
+      - name: Build with PyInstaller
+        run: pyinstaller cleanops.spec
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CleanOps-Linux
+          path: dist/CleanOps
