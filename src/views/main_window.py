@@ -110,7 +110,18 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("CleanOps — Управление клининговой службой")
         self.setGeometry(100, 100, 1440, 900)
-        self.setStyleSheet(f"background-color: {COLOR_BG};")
+
+        # Глобальный QSS — тёмный текст для всех виджетов
+        global_qss = (
+            "QWidget { color: #0F172A; }"
+            "QTableWidget { color: #0F172A; background-color: #FFFFFF; }"
+            "QTableWidget::item { color: #0F172A; }"
+            "QHeaderView::section { color: #64748B; background-color: #F8FAFC; }"
+            "QLabel { color: #0F172A; }"
+            "QLineEdit { color: #0F172A; }"
+            "QComboBox { color: #0F172A; }"
+        )
+        self.setStyleSheet(global_qss + f"background-color: {COLOR_BG};")
 
         self._build_ui()
 

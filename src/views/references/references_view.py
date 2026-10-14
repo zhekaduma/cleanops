@@ -78,7 +78,35 @@ class ReferencesView(QWidget):
 
         # Левая навигация
         nav = self._create_nav()
-        content.addWidget(nav)
+        # Левая колонка: кнопка + навигация
+        left_col = QWidget()
+        left_layout = QVBoxLayout(left_col)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(8)
+
+        # Универсальная кнопка добавления
+        self.add_btn = QPushButton("+  Добавить")
+        self.add_btn.setFixedHeight(40)
+        self.add_btn.setCursor(Qt.PointingHandCursor)
+        self.add_btn.setStyleSheet(
+            f'''
+            QPushButton {{
+                background-color: {COLOR_PRIMARY};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-family: 'Inter';
+                font-size: 14px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{ background-color: #0F766E; }}
+            '''
+        )
+        self.add_btn.clicked.connect(self._on_add)
+        left_layout.addWidget(self.add_btn)
+        left_layout.addWidget(nav)
+
+        content.addWidget(left_col)
 
         # Правая область — QStackedWidget с таблицами
         self.stack = QStackedWidget()
@@ -276,6 +304,33 @@ class ReferencesView(QWidget):
             table.setRowHeight(i, 48)
         return table
 
+    def _on_add(self) -> None:
+        """Обработка кнопки + Добавить."""
+        active = getattr(self, "active_category", "crews")
+        if active == "crews":
+            self._on_new_crew()
+        else:
+            print(f"[ReferencesView] Создание '{active}' в разработке")
+
+    def _on_new_crew(self) -> None:
+        """Открывает диалог создания бригады."""
+        from src.views.references.crew_form_dialog import CrewFormDialog
+
+        dialog = CrewFormDialog(parent=self)
+        if dialog.exec_() == dialog.Accepted:
+            data = dialog.get_data()
+            self.crew_repo.create(**data)
+            print(f"[ReferencesView] Создана бригада: {data['name']}")
+
+            # Пересоздаём таблицу бригад
+            old = self.stack.widget(3)
+            if old:
+                self.stack.removeWidget(old)
+                old.deleteLater()
+            self.crews_table = self._create_crews_table()
+            self.stack.insertWidget(3, self.crews_table)
+            self.stack.setCurrentIndex(3)
+
     def _switch_category(self, item_id: str) -> None:
         """Переключает категорию.
 
@@ -288,6 +343,8 @@ class ReferencesView(QWidget):
             "users": 2,
             "crews": 3,
         }
+
+        self.active_category = item_id
 
         if item_id in index_map:
             self.stack.setCurrentIndex(index_map[item_id])

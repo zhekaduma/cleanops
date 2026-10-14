@@ -19,6 +19,20 @@ class Application:
     def __init__(self) -> None:
         """Инициализирует приложение."""
         self.app = QApplication(sys.argv)
+
+        # Светлая палитра — чтобы текст был тёмным даже на тёмной системе
+        from PyQt5.QtGui import QColor, QPalette
+
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(248, 250, 252))
+        palette.setColor(QPalette.WindowText, QColor(15, 23, 42))
+        palette.setColor(QPalette.Base, QColor(255, 255, 255))
+        palette.setColor(QPalette.AlternateBase, QColor(241, 245, 249))
+        palette.setColor(QPalette.Text, QColor(15, 23, 42))
+        palette.setColor(QPalette.ButtonText, QColor(15, 23, 42))
+        palette.setColor(QPalette.Button, QColor(255, 255, 255))
+        self.app.setPalette(palette)
+        self.app.setStyle("Fusion")
         self.login_window = None
         self.main_window = None
         self.current_user = None
