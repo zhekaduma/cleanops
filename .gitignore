@@ -54,3 +54,5 @@ init_admin.py
 reset_passwords.py 
 dist/ 
 build/ 
+!data/cleanops.db  !data/  !data/cleanops.db 
+!data/ 

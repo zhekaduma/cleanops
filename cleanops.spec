@@ -5,6 +5,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
+        ('data', 'data'),
         ('resources', 'resources'),
         ('scripts', 'scripts'),
     ],
